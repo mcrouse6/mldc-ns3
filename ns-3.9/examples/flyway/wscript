@@ -1,0 +1,12 @@
+## -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+def build(bld):
+    obj = bld.create_ns3_program('flyway-demo', ['core', 'simulator', 'mobility', 'wifi', 'point-to-point', 'internet-stack'])
+    obj.source = 'flyway-demo.cc'
+
+    obj = bld.create_ns3_program('flyway', ['core', 'simulator', 'mobility', 'wifi', 'point-to-point', 'internet-stack'])
+    obj.source = 'flyway.cc'
+
+    obj = bld.create_ns3_program('flyway-one-flow', ['core', 'simulator', 'mobility', 'wifi', 'point-to-point', 'internet-stack'])
+    obj.source = 'flyway-one-flow.cc'
+

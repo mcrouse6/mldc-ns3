@@ -1,0 +1,34 @@
+# ToRs
+NUM-TORS: 80
+Agg2L3_Bandwidth:40Gbps
+Tor2Agg_Bandwidth:10Gbps
+AggFanOut: 80
+L3FanOut:2 
+
+# Flyways
+DonglesPerTor: 1
+DonglesPerAgg: 0 
+DonglesPerL3: 0 
+FlywayBandwidth: 1Gbps
+
+# Scaling
+ScaleDownBy: 1
+
+# Geometry (in feets)
+RackWidth: 1
+RackHeight: 1.3
+ClumpNumRacks: 10
+ClumpSpaceLeft: 3
+ClumpSpaceBelow: 2
+Arrangement: Square
+
+# Traffic
+
+#
+#  format: @time fromNode toNode protocol transferSize dataRate
+#
+# protocol = TCP/UDP
+# dataRate = rate at which packets are handed to the socket
+# transferSize = maxBytes sent by this flow
+# 
+#ReplayFlowFile: scratch/flow.dat
