@@ -76,6 +76,7 @@ for time_step in range(time_steps):
 	# generate wired/wireless allocations
 	wired_wireless_allocations = np.zeros(len(all_pairs))
 	wired_wireless_allocations[np.random.choice(num_flows, size=num_wireless_allocations, replace=False)] = 1
+	wired_wireless_allocations += 1
 
 	# create actual entry
 	#for flowidx_to_use in range(len(flowidxs_to_use)):
