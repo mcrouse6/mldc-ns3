@@ -7,5 +7,12 @@ It has been modified with additional headers so the code will compile/build on U
 ```
 cd ns-3.9
 CXXFLAGS="-Wall" ./waf configure
-./waf --v
+./waf -vv
+```
+
+Build test - of Flyway code:
+
+```
+cd ns-3.9
+./waf --run "flyway-test --topo=scratch/topo.dat --flow=scratch/one-flow.dat --gain=23"
 ```
