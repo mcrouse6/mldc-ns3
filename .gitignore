@@ -2,4 +2,5 @@ ns-3.9/build/*
 *DS_Store
 ns-3.9/scratch/results*/*
 ns-3.9/scratch/flow-data*/*
+ns-3.9/scratch/trash/*
 *._*
