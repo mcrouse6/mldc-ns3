@@ -339,18 +339,20 @@ namespace ns3 {
 
             if(line[0] == '#') 
                 continue;
-
+            int _dummy_ = 0;
             if ( _next_app == NULL )
                 _next_app = new TrafficApp();
-            if (sscanf(line, " %f %d %d %s %f %s", 
+            if (sscanf(line, " %f %d %d %s %f %s %d", 
                         &(_next_app->beginTime), 
                         &(_next_app->fromNode), 
                         &(_next_app->toNode),
                         (_next_app->proto),
                         &(_next_app->transferSize),
-                        (_next_app->dataRateString)
-                ) != 6) {
-                printf("%s: not six fields: %d\n", "flyways-topo-helper", linelen); 
+                        (_next_app->dataRateString), 
+                        &_dummy_
+                ) != 7) {
+                printf("%s: not seven fields: %d\n", "flyways-topo-helper", linelen); 
+                printf("This is a branch from original flyway, make sure that you add 1/2\n");
                 abort();
             }
 

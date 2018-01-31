@@ -36,7 +36,6 @@ time_t start;
 double maxDelay = 0;
 char topoFile[1000];
 char flowFile[1000];
-char wirelessFile[1000];
 char outputFile[1000];
 double gain = 0;
 double maxTS = 0;
@@ -112,11 +111,8 @@ void AddFlyway(Flyway f)
     gateways[1] = toIpv4->GetAddress(toInterfaces[1], 0).GetLocal(); // For flyway link, we need the address of the flyway dongle.
 
     // how do we want to split the traffic?
-    double fraction[] = {0, 0};
-    if(f.link_type == WIRELESS_T)
-        fraction[1] = 1;
-    else if (f.link_type == WIRED_T)
-        fraction[0] = 1;
+    double fraction[] = {0, 1};
+    cout << fraction[0] << ", " << fraction[1] << endl;
 
     // Set up routes.
     Ipv4StaticRoutingHelper ipv4RoutingHelper;
@@ -139,6 +135,7 @@ void Progress ()
     epoch = realTime;
     Time now = Simulator::Now (); 
     cout << "Time: [Sim=" << now.GetSeconds() << ", WallClock=" << sinceStart << ", WallDiff=" << diff << "]" << endl;
+    fprintf(results_h, "Sim: %f, WallClock: %f, WallDiff: %f\n", now.GetSeconds(), sinceStart, diff);
     for (int i=0; i < (int)fth->GetNumApps(); i++) {
         double curr = fth->GetTotalRx(i);
         double tp = (curr - last[i])*8.0/ 1e6;
@@ -281,7 +278,8 @@ void ReadFlows(const char *filename)
     {
         maxTS = ts;
     }
-    Simulator::Schedule(Seconds(0), AddFlyway, f);
+    if(link_type == WIRELESS_T)
+        Simulator::Schedule(Seconds(0), AddFlyway, f);
   }
 }
 
@@ -291,7 +289,6 @@ main (int argc, char **argv)
     CommandLine cmd;
     cmd.AddValue ("topo", "topo file", topoFile);
     cmd.AddValue ("flow", "flow file", flowFile);
-    cmd.AddValue ("wl", "wireless links", wirelessFile);
     cmd.AddValue ("gain", "gain", gain);
     cmd.AddValue ("outfile", "outfile", outputFile);
     cmd.Parse (argc, argv);
@@ -315,8 +312,7 @@ main (int argc, char **argv)
     Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
     // Set up all flyways. 
-    // ReadFlows(flowFile);
-    ReadFlows(wirelessFile);
+    ReadFlows(flowFile);
 
     // Measure throughput every 1 second.
     Simulator::Schedule(Seconds(1), Progress);
