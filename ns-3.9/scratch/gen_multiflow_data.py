@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import itertools
 import argparse
 
@@ -18,9 +19,15 @@ def create_flow_entry(idx, time_step, from_node, to_node):
 ######## PARAMETERS #########
 #############################
 
+parser = argparse.ArgumentParser(description='Convert Flow Logs and Allocations to X Y data for Learning')
+parser.add_argument('-f','--flow_dir', help='flow log/allocations dir', required=True)
+parser.add_argument('-t','--num_tors', help='Number of TOR Switches - sets size of X,Y', type=int, required=True)
+parser.add_argument('-n','--num_flows', help='number of flow logs to generate', default=100, type=int)
+args = vars(parser.parse_args())
+
 # how many TORs to use
 #num_TORs = 32
-num_TORs = 12
+num_TORs = args['num_tors'] 
 
 # how many time steps to generate flows for
 time_steps = 1
@@ -41,9 +48,18 @@ num_wireless_allocations = 4
 num_allocs_per_flow = 15
 
 # output file name
-base_output_fn = 'flow-data-15-200-2'
+base_output_fn = args['flow_dir']
+if not os.path.exists(base_output_fn):
+        os.makedirs(base_output_fn)
+else:
+	print "Output Directory Exists, do you want to proceed? [y/n]"
+	k = raw_input()
+	if k == 'y':
+		pass
+	else: 
+		assert False, "quitting"
 
-num_files = 200
+num_files = args['num_flows'] 
 
 for file_num in range(num_files):
 	output_fn_flows = '%s/flows__%d.dat' % (base_output_fn, file_num)
@@ -88,16 +104,15 @@ for file_num in range(num_files):
 		# allocation_h = open(output_fn_allocations.split('.')[0] + '_' + str(k) + '.dat', 'w')
 		allocation_h = open("%s/alloc__%d_%d.dat" % (base_output_fn, file_num, k), 'w')
 
-		num_wireless = np.random.randint(min_wireless_links, max_wireless_links+1)
+		# num_wireless = np.random.randint(min_wireless_links, max_wireless_links+1)
+		# temporary hard coding
+		num_wireless = 3
 		wireless_allocations = np.random.permutation(range(num_flows))[:num_wireless]
 
 		flow_h = open(output_fn_flows, 'r')
 		for i, line in enumerate(flow_h):
 
 			# generate wired/wireless allocations
-			# wired_wireless_allocations = np.zeros(len(all_pairs))
-			# wired_wireless_allocations[np.random.choice(num_flows, size=num_wireless_allocations, replace=False)] = 1
-			# wired_wireless_allocations += 1
 
 			if i in wireless_allocations:
 				link_t = 1
