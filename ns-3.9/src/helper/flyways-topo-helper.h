@@ -121,6 +121,10 @@ class FlywaysTopoHelper
   FlywaysTopoHelper (char *topoFile,
 		     InternetStackHelper stack,
 		     Ipv4AddressHelper address);
+  FlywaysTopoHelper (char *topoFile, 
+        char *flowFile,
+        InternetStackHelper stack,
+        Ipv4AddressHelper address);
   void ReadTopo(FILE*);
   void AddDeviceAt (uint ind1, uint ind2, Ptr<NetDevice> nd);
   void AddInterfaceAt(uint ind1, uint ind2, 

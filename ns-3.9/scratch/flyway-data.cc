@@ -37,6 +37,7 @@ double maxDelay = 0;
 char topoFile[1000];
 char flowFile[1000];
 char wirelessFile[1000];
+char outputFile[1000];
 double gain = 0;
 double maxTS = 0;
 
@@ -126,6 +127,12 @@ void AddFlyway(Flyway f)
 
 void Progress ()
 {
+
+    FILE* results_h = fopen(outputFile, "a"); 
+    if ( results_h == NULL ) {
+      printf("cannot open reuslts file:\n");
+      exit(-1);
+    }
     time_t realTime = time(NULL);
     double diff = difftime(realTime, epoch);
     double sinceStart = difftime(realTime, start);
@@ -138,8 +145,11 @@ void Progress ()
         tp = tp / diff;
         last[i] = curr;
         printf ("[%d: %f %.3f]\n", i, (double)fth->GetTotalRx(i), tp);
+        fprintf (results_h, "[%d: %f %.3f]\n", i, (double)fth->GetTotalRx(i), tp);
     }
+    fprintf (results_h, "-------------------------\n");
     Simulator::Schedule (Seconds (1), Progress);
+    fclose(results_h);
 }
 
 void SetSimulationDefaults()
@@ -283,6 +293,7 @@ main (int argc, char **argv)
     cmd.AddValue ("flow", "flow file", flowFile);
     cmd.AddValue ("wl", "wireless links", wirelessFile);
     cmd.AddValue ("gain", "gain", gain);
+    cmd.AddValue ("outfile", "outfile", outputFile);
     cmd.Parse (argc, argv);
 
     // Set various default values.
@@ -292,7 +303,8 @@ main (int argc, char **argv)
     address.SetBase("10.1.0.0", "255.255.0.0"); // link local ip addresses
 
     // Create topology.
-    fth = new FlywaysTopoHelper(topoFile, stack, address);
+    // fth = new FlywaysTopoHelper(topoFile, stack, address);
+    fth = new FlywaysTopoHelper(topoFile, flowFile, stack, address);
     for (int i = 0; i < fth->GetNumApps(); i++) {
         last.push_back(0);
     }

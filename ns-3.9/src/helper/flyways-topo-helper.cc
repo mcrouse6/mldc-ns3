@@ -410,7 +410,175 @@ namespace ns3 {
 
     // constructor
     FlywaysTopoHelper::FlywaysTopoHelper 
-        (char *topoFile,
+        (char *topoFile, char *flowFile,
+        InternetStackHelper stack,
+        Ipv4AddressHelper address)
+    {
+
+        m_address = address; 
+
+        FILE *f_in;
+        if (topoFile == NULL || (f_in = fopen(topoFile, "r")) == NULL) {
+            printf("cannot read topo: %s\n", topoFile);
+            exit(-1);
+        }
+
+        // Read the topo file.
+        ReadTopo(f_in);
+
+        // init geometry
+        InitGeometry();
+
+        m_numtors = g_Options.numTors;
+        m_numdongles = g_Options.donglesPerTor;
+
+        m_numaggs = 0;
+        int unassignedTors = m_numtors;
+        while ( unassignedTors > 0 ){
+            m_numaggs += 2;
+            unassignedTors -= g_Options.aggFanOut;
+        }
+
+        m_numl3s = 0;
+        int unassignedAggs = m_numaggs;
+        while( unassignedAggs > 0 ){
+            m_numl3s += 2;
+            unassignedAggs -= g_Options.l3FanOut;
+        }
+
+        m_numnodes = m_numtors + m_numaggs + m_numl3s;
+
+        cout << "Nodes: " << m_numnodes << "ToRs/Aggs/L3s: " << m_numtors << " " << m_numaggs << " " << m_numl3s << endl;;
+        assert (m_numnodes > 0);
+
+        m_nodes.Create(m_numnodes);
+
+        stack.Install(m_nodes);
+
+        for(uint ind1=0; ind1 < m_numnodes; ind1++){
+            m_v_devices.push_back(NULL); // empty map
+            m_v_interfaces.push_back(NULL); // empty interface
+            m_v_nodeXYLocations_meter.push_back(pair<double, double>(-1, -1)); // initialize
+            m_v_node2NextPort.push_back(1); // next usable port is 1. 0 is a special value - cannot be used.
+        }
+
+        // get geo for ToRs
+        for(uint ind1=0; ind1 < m_numtors; ind1++){
+            m_v_nodeXYLocations_meter[ind1]=GetNextRackLocation();
+            cout << "[GeoLoc] node " << ind1 << " (x, y) = (" << m_v_nodeXYLocations_meter[ind1].first << ", " << m_v_nodeXYLocations_meter[ind1].second << ")" << endl; 
+        }
+
+        // connect ToRs to their Agg Switch
+        uint currentAggIndex_a = m_numtors;
+        for(uint ind1=0; ind1 < m_numtors; ind1++){
+            Time lat = MilliSeconds(0.01);
+            //Time lat = MilliSeconds(10);
+            //uint32_t qSize = g_Options.tor2Agg_Bandwidth.GetBitRate() * lat.GetSeconds() * 10/ 8;  // BDP assuming paths ~ 5hops
+            for(uint ind2=0; ind2 < 2; ind2++){
+                PointToPointHelper pointToPoint;
+                pointToPoint.SetDeviceAttribute("DataRate", DataRateValue(g_Options.tor2Agg_Bandwidth));
+                pointToPoint.SetChannelAttribute("Delay", TimeValue(lat));
+                pointToPoint.SetQueueAttribute("Mode", EnumValue(DropTailQueue::BYTES));
+                pointToPoint.SetQueueAttribute("MaxBytes", UintegerValue(1e7));
+
+                int n1 = ind1;
+                int n2 = ind2+ currentAggIndex_a;
+            
+                NodeContainer nc = NodeContainer(m_nodes.Get(n1), m_nodes.Get(n2));
+                NetDeviceContainer linkDevices = pointToPoint.Install(nc);
+              
+                wiredUplinks[n1].Add(linkDevices.Get(0));
+
+                Ipv4InterfaceContainer linkInterfaces = m_address.Assign(linkDevices);
+            
+                AddDeviceAt(n1, n2, linkDevices.Get(0));
+                AddDeviceAt(n2, n1, linkDevices.Get(1));
+    
+                AddInterfaceAt(n1, n2, linkInterfaces.Get(0));
+                AddInterfaceAt(n2, n1, linkInterfaces.Get(1));
+           
+                m_address.NewNetwork();
+            }
+
+            m_tor2agg_index.insert(pair<int, int> (ind1, currentAggIndex_a));
+
+            if ( m_agg2tor_index.find(currentAggIndex_a) == m_agg2tor_index.end()){ 
+                m_agg2tor_index.insert(pair<uint, vector<uint>* >(currentAggIndex_a, new vector<uint> () ));
+            }
+            m_agg2tor_index[currentAggIndex_a]->push_back(ind1);
+      
+            if ( ind1 !=  m_numtors-1 && (ind1+1) % g_Options.aggFanOut == 0 ) {
+                currentAggIndex_a += 2;
+            }
+        }
+        assert ( currentAggIndex_a + 1 < m_numtors + m_numaggs);
+
+        cout << "======================================================================" << endl;
+        // get geo for agg switch
+        for(uint ind=m_numtors; ind < m_numtors+m_numaggs; ind+=2){
+            m_v_nodeXYLocations_meter[ind] = m_v_nodeXYLocations_meter[GetCentralRack ( m_agg2tor_index[ind] )];
+            m_v_nodeXYLocations_meter[ind+1] = m_v_nodeXYLocations_meter[ind];
+        }
+
+        // connect agg switches to l3
+        uint currentL3Index_a = m_numtors + m_numaggs;
+        for(uint ind1=0; ind1 < m_numaggs; ind1++){
+            Time lat = MilliSeconds(0.01);
+            //uint qSize = g_Options.agg2L3_Bandwidth.GetBitRate() * lat.GetSeconds() * 10/8;
+
+            for(uint ind2=0; ind2<2; ind2++){
+                PointToPointHelper pointToPoint;
+                pointToPoint.SetDeviceAttribute("DataRate", DataRateValue(g_Options.agg2L3_Bandwidth));
+                pointToPoint.SetChannelAttribute("Delay", TimeValue(lat));
+                pointToPoint.SetQueueAttribute("Mode", EnumValue(DropTailQueue::BYTES));
+                pointToPoint.SetQueueAttribute("MaxBytes", UintegerValue(1e7));
+                int n1 = ind1 + m_numtors;
+                int n2 = ind2 + currentL3Index_a;
+    
+                NodeContainer nc = NodeContainer(m_nodes.Get(n1), m_nodes.Get(n2));
+                NetDeviceContainer linkDevices = pointToPoint.Install(nc);
+                Ipv4InterfaceContainer linkInterfaces = m_address.Assign(linkDevices);
+    
+                wiredUplinks[n1].Add(linkDevices.Get(0));
+
+                AddDeviceAt(n1, n2, linkDevices.Get(0));
+                AddDeviceAt(n2, n1, linkDevices.Get(1));
+    
+                AddInterfaceAt(n1, n2, linkInterfaces.Get(0));
+                AddInterfaceAt(n2, n1, linkInterfaces.Get(1));
+                   
+                m_address.NewNetwork();
+            }
+            m_agg2l3_index.insert(pair<int, int>(ind1+m_numtors, currentL3Index_a));
+            if ( ind1 != m_numaggs - 1 && (ind1+1)%g_Options.l3FanOut == 0 ) {
+                currentL3Index_a += 2;
+            }
+        } 
+        SetupMobilityModel();
+        SetupWirelessInterfaces();
+        // Set up traffic
+        // if ( g_Options.trafficType == FW_TT_ReplayFlows ){
+
+        //     FILE* flows = fopen(g_Options.replayFlowFileName, "r");
+        //     if ( flows == NULL ) {
+        //         printf("cannot read flow file: %s\n", g_Options.replayFlowFileName);
+        //         exit(-1);
+        //     }
+        //     SetupFlows ( flows );
+        // }
+        FILE* flows = fopen(flowFile, "r");
+        cout << "new code path" << endl;
+        if ( flows == NULL ) {
+            printf("cannot read flow file: %s\n", g_Options.replayFlowFileName);
+            exit(-1);
+        }
+        SetupFlows ( flows );
+
+        assert(currentL3Index_a +1 < m_numnodes);
+    }
+
+    FlywaysTopoHelper::FlywaysTopoHelper 
+        (char *topoFile, 
         InternetStackHelper stack,
         Ipv4AddressHelper address)
     {
@@ -566,7 +734,8 @@ namespace ns3 {
             }
             SetupFlows ( flows );
         }
-        assert(currentL3Index_a +1 < m_numnodes);
+
+        assert( currentL3Index_a +1 < m_numnodes);
     }
 
     void FlywaysTopoHelper::SetupMobilityModel()
@@ -1069,6 +1238,7 @@ namespace ns3 {
         {
             Ptr<ConeAntenna> ca = DynamicCast<ConeAntenna>(phy->GetAntenna());
             ca->SetGainDbi(gain);
+            cout << "Antenna Beamwidth Degrees: " << ca->GetBeamwidthDegrees() << endl;
         }
         else if (g_Options.antenna == FW_Antenna_Measured)
         {
