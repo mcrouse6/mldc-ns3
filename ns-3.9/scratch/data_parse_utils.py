@@ -1,6 +1,8 @@
 import numpy as np
 import glob
 import argparse
+import os
+import matplotlib.pyplot as plt
 
 
 def parseAllocFileLine(line):
@@ -108,21 +110,54 @@ def plotConnectionGraph(flow_dir, flow_file, x_spacing=1, y_spacing=3, num_rows=
             plt.arrow(from_x_pos, from_y_pos, dx, dy, width=width, length_includes_head=True, ec='none',  fc=fc)
     
     plt.axis('equal')
+    plt.show()
 
-def getBestAlloc(alloc_file):
+def calcAllocValue( results_dir, results_file):
     """
     Sim: 1.000000, WallClock: 20.000000, WallDiff: 20.000000
     [0: 100000000.000000 40.000]
     """
-    result_file = alloc_file.split("__")[1].split(".")[0]
-    with open("%s/%s.txt" % (results_dir, result_file), 'r') as fh:
 
+    tp_arr = []
+    data_arr = []
+    run_time = 0.
+    fname = "%s/%s" % (results_dir, results_file)
+    if os.path.isfile(fname):
+        # with open("%s/%s" % (results_dir, results_file), 'r') as fh:
+        with open(fname, 'r') as fh:
+            l1 = fh.readline()
+            if "Sim:" in l1:
+                run_time = float(l1.split(",")[1].split(':')[1])
+            for i in range(15):
+                line = fh.readline()
+                all_data = line.split(" ")
+                tp = float(all_data[-1].strip("\n").strip("]"))
+                data = float(all_data[1])
+                tp_arr.append(tp)
+                data_arr.append(data)
+
+        return sum(data_arr)/15.
+    else:
+        return 0.0
         
 
+def getBestAllocs(flow_file, flow_dir="flow-data-3-200", results_dir="results-3-200-1"):
+    results_file_base = flow_file.split("__")[1].split(".")[0]
+    max_val = 0
+    max_val_idx = 0
+    for i in range(15):
+        val = calcAllocValue(results_dir, "%s_%d.txt" % (results_file_base, i) )
+        if val > max_val:
+            max_val = val
+            max_val_idx = i
+    return max_val, max_val_idx
 
 
-def plotBestAlloc():
-    plotConnectionGraph(flow_dir="flow-data-3-200", flow_file="alloc__199_0.dat")
+def plotBestAlloc(flow_file, flow_dir="flow-data-3-200"):
+    val, best_idx = getBestAllocs(flow_file)
+    flow_id = int(flow_file.split("__")[1].split(".")[0])
+    print flow_file, flow_id, best_idx, val
+    plotConnectionGraph(flow_dir=flow_dir, flow_file="alloc__%d_%d.dat" % (flow_id, best_idx))
 
 
 
