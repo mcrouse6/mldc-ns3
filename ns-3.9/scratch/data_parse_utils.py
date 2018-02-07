@@ -14,6 +14,16 @@ def parseAllocFileLine(line):
     data_size = int(data[4])
     return from_node, to_node, link_t
 
+def parseFlowFileLine(line):
+    #ts fromNode toNode protocol transferSize dataRate 
+    #0 8 6 Tcp 100000000 1Gbps 2
+    data = line.split(" ")
+    ts = int(data[0])
+    from_node = int(data[1])
+    to_node = int(data[2])
+    data_size = int(data[4])
+    return from_node, to_node
+
 
 def convertAllocFileToXY(file_name):
     with open(file_name, 'r') as fh:
@@ -60,6 +70,59 @@ def parseAllFlowFiles(flow_dir, results_dir, num_tors, output_dir):
     Ys= np.array(Ys)
     return Xs, Ys
 
+def nodeToXY(idx, racks_per_row, x_spacing, y_spacing):
+    x_pos = (idx % racks_per_row) * x_spacing
+    y_pos = ((idx / racks_per_row) ) * y_spacing
+    return x_pos, y_pos
+
+def calcDistance(from_x_pos, from_y_pos, to_x_pos, to_y_pos):
+    dx = to_x_pos - from_x_pos
+    dy = to_y_pos - from_y_pos
+    return dx, dy
+
+def plotConnectionGraph(flow_dir, flow_file, x_spacing=1, y_spacing=3, num_rows=3, racks_per_row=4):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    xs = []
+    ys = []
+    legend = []
+    for row in range(num_rows):
+        for rack in range(racks_per_row):
+            x_pos = rack*x_spacing
+            y_pos = row*y_spacing
+            ax.plot(x_pos, y_pos, c='k', markersize=15, marker='s', zorder=1, mfc='none', linestyle = 'None', mew=2)
+
+    with open("%s/%s" % (flow_dir, flow_file), 'r') as flow_fh:
+        for line in flow_fh: 
+            from_idx, to_idx, link_t = parseAllocFileLine(line)
+            if link_t == 1:
+                fc = "r"
+                width= .1
+            else:
+                fc = 'b'
+                width = .05
+            from_x_pos, from_y_pos = nodeToXY(from_idx, racks_per_row, x_spacing, y_spacing)
+            to_x_pos, to_y_pos = nodeToXY(to_idx, racks_per_row, x_spacing, y_spacing)
+            dx, dy = calcDistance(from_x_pos, from_y_pos, to_x_pos, to_y_pos)
+            plt.arrow(from_x_pos, from_y_pos, dx, dy, width=width, length_includes_head=True, ec='none',  fc=fc)
+    
+    plt.axis('equal')
+
+def getBestAlloc(alloc_file):
+    """
+    Sim: 1.000000, WallClock: 20.000000, WallDiff: 20.000000
+    [0: 100000000.000000 40.000]
+    """
+    result_file = alloc_file.split("__")[1].split(".")[0]
+    with open("%s/%s.txt" % (results_dir, result_file), 'r') as fh:
+
+        
+
+
+
+def plotBestAlloc():
+    plotConnectionGraph(flow_dir="flow-data-3-200", flow_file="alloc__199_0.dat")
 
 
 
